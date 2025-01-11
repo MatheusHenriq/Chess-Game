@@ -16,11 +16,15 @@ class _ChessBoardPageState extends State<ChessBoardPage> {
   ChessPiece? selectedPiece;
   int selectedRow = -1;
   int selectedCol = -1;
-
+  List<List<int>> validMoves = [];
   @override
   void initState() {
     super.initState();
     _initializeBoard();
+  }
+
+  bool isInBoard({required int row, required int col}) {
+    return row >= 0 && row < 8 && col >= 0 && col < 8;
   }
 
   void _initializeBoard() {
@@ -69,7 +73,58 @@ class _ChessBoardPageState extends State<ChessBoardPage> {
         selectedRow = row;
         selectedCol = col;
       }
+      validMoves =
+          calculateRowValidMoves(row: row, col: col, piece: board[row][col]);
     });
+  }
+
+  List<List<int>> calculateRowValidMoves(
+      {required int row, required int col, ChessPiece? piece}) {
+    List<List<int>> candidateMoves = [];
+    if (piece != null) {
+      int direction = piece.isWhite ? -1 : 1;
+
+      switch (piece.type) {
+        case ChessType.pawn:
+          //pawns can move fowared if the house is not occupied
+          if (isInBoard(row: row + direction, col: col) &&
+              board[row + direction][col] == null) {
+            candidateMoves.add([row + direction, col]);
+          }
+
+          //pawns can move 2 houses fowared if they are in the initial positions and do not have any piece in that space
+          if (((row == 1 && !piece.isWhite) || (row == 6 && piece.isWhite)) &&
+              isInBoard(row: row + 2 * direction, col: col) &&
+              board[row + direction][col] == null &&
+              board[row + 2 * direction][col] == null) {
+            candidateMoves.add([row + 2 * direction, col]);
+          }
+
+          //pawns can capture diagonally
+          if (isInBoard(row: row + direction, col: col - 1) &&
+              board[row + direction][col - 1] != null &&
+              board[row + direction][col - 1]!.isWhite) {
+            candidateMoves.add([row + direction, col - 1]);
+          } else if (isInBoard(row: row + direction, col: col + 1) &&
+              board[row + direction][col + 1] != null &&
+              board[row + direction][col + 1]!.isWhite) {
+            candidateMoves.add([row + direction, col + 1]);
+          }
+          break;
+        case ChessType.king:
+          throw UnimplementedError();
+        case ChessType.bishop:
+          throw UnimplementedError();
+        case ChessType.knight:
+          throw UnimplementedError();
+        case ChessType.rook:
+          throw UnimplementedError();
+        case ChessType.queen:
+          throw UnimplementedError();
+      }
+    }
+
+    return candidateMoves;
   }
 
   @override
@@ -100,7 +155,14 @@ class _ChessBoardPageState extends State<ChessBoardPage> {
                     bool isColored = (row + col) % 2 == 0;
                     bool isSelected =
                         (selectedRow == row && selectedCol == col);
+                    bool isValidMove = false;
+                    for (var position in validMoves) {
+                      if (position[0] == row && position[1] == col) {
+                        isValidMove = true;
+                      }
+                    }
                     return ChessSquare(
+                        isValidMove: isValidMove,
                         onTap: () => pieceSelected(row: row, col: col),
                         isSelected: isSelected,
                         isColored: isColored,

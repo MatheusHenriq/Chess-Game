@@ -17,6 +17,13 @@ class _ChessBoardPageState extends State<ChessBoardPage> {
   int selectedRow = -1;
   int selectedCol = -1;
   List<List<int>> validMoves = [];
+  List<ChessPiece> whitePiecesCaptured = [];
+  List<ChessPiece> blackPiecesCaptured = [];
+  bool isWhiteTurn = true;
+  List<int> whiteKingPosition = [7, 4];
+  List<int> blackKingPosition = [0, 4];
+  bool checkStatus = false;
+
   @override
   void initState() {
     super.initState();
@@ -64,16 +71,35 @@ class _ChessBoardPageState extends State<ChessBoardPage> {
     newBoard[7][4] = ChessPiece.whiteKing();
     setState(() {
       board = newBoard;
+      isWhiteTurn = true;
     });
   }
 
   void pieceSelected({required int row, required int col}) {
     setState(() {
-      if (board[row][col] != null) {
+      //No piece has been selected yer, this is the first selection
+      if (selectedPiece == null && board[row][col] != null) {
+        if (board[row][col]!.isWhite == isWhiteTurn) {
+          selectedPiece = board[row][col];
+          selectedRow = row;
+          selectedCol = col;
+        }
+      }
+
+      //There is a piece already selected, but user can select another one of their pieces
+      else if (board[row][col] != null &&
+          board[row][col]!.isWhite == selectedPiece!.isWhite) {
         selectedPiece = board[row][col];
         selectedRow = row;
         selectedCol = col;
       }
+
+      // if there is a piece selected, and user click on a house that is a valid move, move piece there
+      else if (selectedPiece != null &&
+          validMoves.any((element) => element[0] == row && element[1] == col)) {
+        movePiece(newRow: row, newCol: col);
+      }
+      // if a piece is selected, calculate its valid moves
       validMoves =
           calculateRowValidMoves(row: row, col: col, piece: board[row][col]);
     });
@@ -104,9 +130,10 @@ class _ChessBoardPageState extends State<ChessBoardPage> {
           //pawns can capture diagonally
           if (isInBoard(row: row + direction, col: col - 1) &&
               board[row + direction][col - 1] != null &&
-              board[row + direction][col - 1]!.isWhite) {
+              board[row + direction][col - 1]!.isWhite != piece.isWhite) {
             candidateMoves.add([row + direction, col - 1]);
-          } else if (isInBoard(row: row + direction, col: col + 1) &&
+          }
+          if (isInBoard(row: row + direction, col: col + 1) &&
               board[row + direction][col + 1] != null &&
               board[row + direction][col + 1]!.isWhite) {
             candidateMoves.add([row + direction, col + 1]);
@@ -254,6 +281,58 @@ class _ChessBoardPageState extends State<ChessBoardPage> {
     return candidateMoves;
   }
 
+  bool kingIsInCheck({required bool isWhiteKing}) {
+    List<int> kingPosition =
+        isWhiteKing ? whiteKingPosition : blackKingPosition;
+
+    for (var i = 0; i < 8; i++) {
+      for (var j = 0; j < 8; j++) {
+        if (board[i][j] == null || board[i][j]!.isWhite == isWhiteKing) {
+          continue;
+        }
+        List<List<int>> pieceValidMoves =
+            calculateRowValidMoves(row: i, col: j, piece: board[i][j]);
+
+        if (pieceValidMoves.any((move) =>
+            move[0] == kingPosition[0] && move[1] == kingPosition[1])) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  void movePiece({required int newRow, required int newCol}) {
+    //if the new house has an enemy piece
+    if (board[newRow][newCol] != null) {
+      var capturePiece = board[newRow][newCol];
+      if (capturePiece!.isWhite) {
+        whitePiecesCaptured.add(capturePiece);
+      } else {
+        blackPiecesCaptured.add(capturePiece);
+      }
+    }
+    //move the piece and clear the old place
+    board[newRow][newCol] = selectedPiece;
+    board[selectedRow][selectedCol] = null;
+
+    //see if any kings is under attack
+    if (kingIsInCheck(isWhiteKing: !isWhiteTurn)) {
+      checkStatus = true;
+    } else {
+      checkStatus = false;
+    }
+
+//clear selection
+    setState(() {
+      selectedPiece = null;
+      selectedCol = -1;
+      selectedRow = -1;
+      validMoves = [];
+    });
+    isWhiteTurn = !isWhiteTurn;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -267,6 +346,18 @@ class _ChessBoardPageState extends State<ChessBoardPage> {
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          SizedBox(
+            height: 124,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: blackPiecesCaptured.length,
+              itemBuilder: (context, index) => SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: Image.asset(blackPiecesCaptured[index].imagePath)),
+            ),
+          ),
+          Text(checkStatus ? "King Is under attack" : ""),
           Center(
             child: SizedBox(
               height: chessHouseNumberPerLine * chessHouseArea,
@@ -297,7 +388,19 @@ class _ChessBoardPageState extends State<ChessBoardPage> {
                         squareHeight: chessHouseArea);
                   }),
             ),
-          )
+          ),
+          SizedBox(
+            height: 124,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: whitePiecesCaptured.length,
+              itemBuilder: (context, index) => SizedBox(
+                width: 32,
+                height: 32,
+                child: Image.asset(whitePiecesCaptured[index].imagePath),
+              ),
+            ),
+          ),
         ],
       ),
     );

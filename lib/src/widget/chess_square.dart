@@ -32,8 +32,6 @@ class ChessSquare extends StatelessWidget {
         children: [
           Container(
             color: squareColor,
-            height: squareHeight,
-            width: squareHeight,
             child: pieceType != null ? Image.asset(pieceType!.imagePath) : null,
           ),
           Visibility(

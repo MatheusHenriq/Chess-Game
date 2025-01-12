@@ -40,6 +40,7 @@ class _ChessBoardPageState extends State<ChessBoardPage> {
     for (var i = 0; i < chessHouseNumberPerLine; i++) {
       newBoard[6][i] = ChessPiece.whitePawn();
     }
+
     //Place Rooks
     newBoard[0][0] = ChessPiece.blackRook();
     newBoard[0][7] = ChessPiece.blackRook();
@@ -82,10 +83,10 @@ class _ChessBoardPageState extends State<ChessBoardPage> {
       {required int row, required int col, ChessPiece? piece}) {
     List<List<int>> candidateMoves = [];
     if (piece != null) {
-      int direction = piece.isWhite ? -1 : 1;
-
       switch (piece.type) {
         case ChessType.pawn:
+          int direction = piece.isWhite ? -1 : 1;
+
           //pawns can move fowared if the house is not occupied
           if (isInBoard(row: row + direction, col: col) &&
               board[row + direction][col] == null) {
@@ -112,15 +113,141 @@ class _ChessBoardPageState extends State<ChessBoardPage> {
           }
           break;
         case ChessType.king:
-          throw UnimplementedError();
+          var directions = [
+            [-1, 0], // up
+            [1, 0], // down
+            [0, -1], //left
+            [0, 1], //right,
+            [1, 1], //down right
+            [1, -1], //down left
+            [-1, 1], //up right
+            [-1, -1] // up left
+          ];
+          for (var direction in directions) {
+            var newRow = row + direction[0];
+            var newCol = col + direction[1];
+            if (!isInBoard(row: newRow, col: newCol)) {
+              continue;
+            }
+            if (board[newRow][newCol] != null) {
+              if (board[newRow][newCol]!.isWhite != piece.isWhite) {
+                candidateMoves.add([newRow, newCol]); // kill
+              }
+              continue;
+            }
+            candidateMoves.add([newRow, newCol]);
+          }
+          break;
         case ChessType.bishop:
-          throw UnimplementedError();
+          var directions = [
+            [-1, -1], // up left
+            [1, 1], //down right
+            [1, -1], //down left
+            [-1, 1], //up right
+          ];
+          for (var direction in directions) {
+            var i = 1;
+            while (true) {
+              var newRow = row + i * direction[0];
+              var newCol = col + i * direction[1];
+              if (!isInBoard(row: newRow, col: newCol)) {
+                break;
+              }
+              if (board[newRow][newCol] != null) {
+                if (board[newRow][newCol]!.isWhite != piece.isWhite) {
+                  candidateMoves.add([newRow, newCol]); //kill
+                }
+                break;
+              }
+              candidateMoves.add([newRow, newCol]);
+              i++;
+            }
+          }
+          break;
         case ChessType.knight:
-          throw UnimplementedError();
+          var knightMoves = [
+            [-2, -1], // up 2 left 1
+            [-2, 1], //up 2 right 1
+            [-1, -2], // up 1 left 2
+            [-1, 2], // up 1 right 2
+            [1, -2], // down 1 left 2
+            [1, 2], // down 1 right 2
+            [2, -1], // down 2 left 1
+            [2, 1], // down 2 right 1
+          ];
+          for (var move in knightMoves) {
+            var newRow = row + move[0];
+            var newCol = col + move[1];
+            if (!isInBoard(row: newRow, col: newCol)) {
+              continue;
+            }
+            if (board[newRow][newCol] != null) {
+              if (board[newRow][newCol]!.isWhite != piece.isWhite) {
+                candidateMoves.add([newRow, newCol]); // kill
+              }
+              continue; //blocked
+            }
+            candidateMoves.add([newRow, newCol]);
+          }
+
+          break;
         case ChessType.rook:
-          throw UnimplementedError();
+          var directions = [
+            [-1, 0], // goes up
+            [1, 0], // goes down
+            [0, -1], // goes left
+            [0, 1], // goes right
+          ];
+          // horizontal and vertical diretions
+          for (var direction in directions) {
+            int i = 1;
+            while (true) {
+              var newRow = row + i * direction[0];
+              var newCol = col + i * direction[1];
+              if (!isInBoard(row: newRow, col: newCol)) {
+                break;
+              }
+              if (board[newRow][newCol] != null) {
+                if (board[newRow][newCol]!.isWhite != piece.isWhite) {
+                  candidateMoves.add([newRow, newCol]); //kill
+                }
+                break; // blocked
+              }
+              candidateMoves.add([newRow, newCol]);
+              i++;
+            }
+          }
+          break;
         case ChessType.queen:
-          throw UnimplementedError();
+          var directions = [
+            [-1, 0], // up
+            [1, 0], // down
+            [0, -1], //left
+            [0, 1], //right,
+            [1, 1], //down right
+            [1, -1], //down left
+            [-1, 1], //up right
+            [-1, -1] // up left
+          ];
+          for (var direction in directions) {
+            var i = 1;
+            while (true) {
+              var newRow = row + i * direction[0];
+              var newCol = col + i * direction[1];
+              if (!isInBoard(row: newRow, col: newCol)) {
+                break;
+              }
+              if (board[newRow][newCol] != null) {
+                if (board[newRow][newCol]!.isWhite != piece.isWhite) {
+                  candidateMoves.add([newRow, newCol]); //kill
+                }
+                break;
+              }
+              candidateMoves.add([newRow, newCol]);
+              i++;
+            }
+          }
+          break;
       }
     }
 

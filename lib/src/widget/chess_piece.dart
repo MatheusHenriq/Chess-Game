@@ -47,7 +47,7 @@ class ChessPiece {
       this.isWhite = true,
       this.imagePath = AppImages.whiteKnight});
   const ChessPiece.blackKnight(
-      {this.type = ChessType.pawn,
+      {this.type = ChessType.knight,
       this.isWhite = false,
       this.imagePath = AppImages.blackKnight});
 

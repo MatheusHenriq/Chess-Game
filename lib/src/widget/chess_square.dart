@@ -28,17 +28,27 @@ class ChessSquare extends StatelessWidget {
     }
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        color: squareColor,
-        height: squareHeight,
-        width: squareHeight,
-        child: isValidMove
-            ? Container(
-                color: Colors.yellow,
-              )
-            : pieceType != null
-                ? Image.asset(pieceType!.imagePath)
-                : null,
+      child: Stack(
+        children: [
+          Container(
+            color: squareColor,
+            height: squareHeight,
+            width: squareHeight,
+            child: pieceType != null ? Image.asset(pieceType!.imagePath) : null,
+          ),
+          Visibility(
+              visible: isValidMove,
+              child: Center(
+                child: Container(
+                  height: 12,
+                  width: 12,
+                  decoration: BoxDecoration(
+                    color: Colors.yellow,
+                    borderRadius: BorderRadius.circular(50.0),
+                  ),
+                ),
+              ))
+        ],
       ),
     );
   }

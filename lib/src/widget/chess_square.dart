@@ -1,5 +1,5 @@
 import 'package:chess_board/core/constants/app_colors.dart';
-import 'package:chess_board/src/widget/chess_piece.dart';
+import 'package:chess_board/src/model/chess_piece.dart';
 import 'package:flutter/material.dart';
 
 class ChessSquare extends StatelessWidget {

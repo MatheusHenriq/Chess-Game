@@ -1,4 +1,4 @@
-import 'package:chess_board/src/widget/chess_piece.dart';
+import 'package:chess_board/src/model/chess_piece.dart';
 import 'package:chess_board/src/widget/chess_square.dart';
 import 'package:flutter/material.dart';
 
@@ -69,39 +69,30 @@ class _ChessBoardPageState extends State<ChessBoardPage> {
     //Place Kings
     newBoard[0][4] = ChessPiece.blackKing();
     newBoard[7][4] = ChessPiece.whiteKing();
-    setState(() {
-      board = newBoard;
-      isWhiteTurn = true;
-    });
+
+    board = newBoard;
+    isWhiteTurn = true;
   }
 
   void pieceSelected({required int row, required int col}) {
     setState(() {
-      //No piece has been selected yer, this is the first selection
       if (selectedPiece == null && board[row][col] != null) {
         if (board[row][col]!.isWhite == isWhiteTurn) {
           selectedPiece = board[row][col];
           selectedRow = row;
           selectedCol = col;
         }
-      }
-
-      //There is a piece already selected, but user can select another one of their pieces
-      else if (board[row][col] != null &&
+      } else if (board[row][col] != null &&
           board[row][col]!.isWhite == selectedPiece!.isWhite) {
         selectedPiece = board[row][col];
         selectedRow = row;
         selectedCol = col;
-      }
-
-      // if there is a piece selected, and user click on a house that is a valid move, move piece there
-      else if (selectedPiece != null &&
+      } else if (selectedPiece != null &&
           validMoves.any((element) => element[0] == row && element[1] == col)) {
         movePiece(newRow: row, newCol: col);
       }
-      // if a piece is selected, calculate its valid moves
-      validMoves =
-          calculateRowValidMoves(row: row, col: col, piece: board[row][col]);
+      validMoves = calculateRealValidMoves(
+          row: row, col: col, piece: board[row][col], checkSimulation: true);
     });
   }
 
@@ -281,6 +272,68 @@ class _ChessBoardPageState extends State<ChessBoardPage> {
     return candidateMoves;
   }
 
+  List<List<int>> calculateRealValidMoves(
+      {required int row,
+      required int col,
+      ChessPiece? piece,
+      required bool checkSimulation}) {
+    List<List<int>> realValidMoves = [];
+    List<List<int>> candidateMoves =
+        calculateRowValidMoves(col: col, row: row, piece: piece);
+    if (checkSimulation) {
+      for (var move in candidateMoves) {
+        int endRow = move[0];
+        int endCol = move[1];
+        if (simulateMoveIsSafe(
+            piece: piece!,
+            startRow: row,
+            startCol: col,
+            endCol: endCol,
+            endRow: endRow)) {
+          realValidMoves.add(move);
+        }
+      }
+    } else {
+      realValidMoves = candidateMoves;
+    }
+    return realValidMoves;
+  }
+
+  bool simulateMoveIsSafe({
+    required ChessPiece piece,
+    required int startRow,
+    required int startCol,
+    required int endRow,
+    required int endCol,
+  }) {
+    ChessPiece? originalDestinationPiece = board[endRow][endCol];
+    List<int>? originalKingPosition;
+    if (piece.type == ChessType.king) {
+      originalKingPosition =
+          piece.isWhite ? whiteKingPosition : blackKingPosition;
+      if (piece.isWhite) {
+        whiteKingPosition = [endRow, endCol];
+      } else {
+        blackKingPosition = [endRow, endCol];
+      }
+    }
+
+    board[endRow][endCol] = piece;
+    board[startRow][startCol] = null;
+
+    bool kingInCheck = kingIsInCheck(isWhiteKing: piece.isWhite);
+    board[startRow][startCol] = piece;
+    board[endRow][endCol] = originalDestinationPiece;
+    if (piece.type == ChessType.king) {
+      if (piece.isWhite) {
+        whiteKingPosition = originalKingPosition!;
+      } else {
+        blackKingPosition = originalKingPosition!;
+      }
+    }
+    return !kingInCheck;
+  }
+
   bool kingIsInCheck({required bool isWhiteKing}) {
     List<int> kingPosition =
         isWhiteKing ? whiteKingPosition : blackKingPosition;
@@ -290,8 +343,8 @@ class _ChessBoardPageState extends State<ChessBoardPage> {
         if (board[i][j] == null || board[i][j]!.isWhite == isWhiteKing) {
           continue;
         }
-        List<List<int>> pieceValidMoves =
-            calculateRowValidMoves(row: i, col: j, piece: board[i][j]);
+        List<List<int>> pieceValidMoves = calculateRealValidMoves(
+            row: i, col: j, piece: board[i][j], checkSimulation: false);
 
         if (pieceValidMoves.any((move) =>
             move[0] == kingPosition[0] && move[1] == kingPosition[1])) {
@@ -312,6 +365,15 @@ class _ChessBoardPageState extends State<ChessBoardPage> {
         blackPiecesCaptured.add(capturePiece);
       }
     }
+
+    //check the piece being move is a king
+    if (selectedPiece!.type == ChessType.king) {
+      if (selectedPiece!.isWhite) {
+        whiteKingPosition = [newRow, newCol];
+      } else {
+        blackKingPosition = [newRow, newCol];
+      }
+    }
     //move the piece and clear the old place
     board[newRow][newCol] = selectedPiece;
     board[selectedRow][selectedCol] = null;
@@ -330,24 +392,68 @@ class _ChessBoardPageState extends State<ChessBoardPage> {
       selectedRow = -1;
       validMoves = [];
     });
+
+    if (isCheckMate(isWhiteKing: !isWhiteTurn)) {
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text("CheckMate"),
+            actions: [
+              TextButton(onPressed: resetGame, child: const Text("Play Again"))
+            ],
+          );
+        },
+      );
+    }
+
     isWhiteTurn = !isWhiteTurn;
+  }
+
+  bool isCheckMate({required bool isWhiteKing}) {
+    if (!kingIsInCheck(isWhiteKing: isWhiteKing)) {
+      return false;
+    }
+
+    for (var i = 0; i < chessHouseNumberPerLine; i++) {
+      for (var j = 0; j < chessHouseNumberPerLine; j++) {
+        if (board[i][j] == null || board[i][j]!.isWhite != isWhiteKing) {
+          continue;
+        }
+        List<List<int>> pieceValidMoves = calculateRealValidMoves(
+            row: i, col: j, piece: board[i][j], checkSimulation: true);
+        if (pieceValidMoves.isNotEmpty) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  void resetGame() {
+    Navigator.pop(context);
+    _initializeBoard();
+    checkStatus = false;
+    whitePiecesCaptured.clear();
+    blackPiecesCaptured.clear();
+    whiteKingPosition = [7, 4];
+    blackKingPosition = [0, 4];
+    isWhiteTurn = true;
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton:
-          FloatingActionButton(onPressed: () => _initializeBoard()),
       appBar: AppBar(
         backgroundColor: Colors.blue,
         title: Text("Chess Board"),
         centerTitle: true,
       ),
       body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           SizedBox(
-            height: 124,
+            height: 64,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: blackPiecesCaptured.length,
@@ -358,11 +464,10 @@ class _ChessBoardPageState extends State<ChessBoardPage> {
             ),
           ),
           Text(checkStatus ? "King Is under attack" : ""),
-          Center(
-            child: SizedBox(
-              height: chessHouseNumberPerLine * chessHouseArea,
-              width: chessHouseNumberPerLine * chessHouseArea,
+          Expanded(
+            child: Center(
               child: GridView.builder(
+                  shrinkWrap: true,
                   physics: NeverScrollableScrollPhysics(),
                   itemCount: chessHouseNumberPerLine * chessHouseNumberPerLine,
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -390,7 +495,7 @@ class _ChessBoardPageState extends State<ChessBoardPage> {
             ),
           ),
           SizedBox(
-            height: 124,
+            height: 64,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: whitePiecesCaptured.length,
